@@ -1,0 +1,6 @@
+board:
+  name: trik-board
+  vendor: Trik
+  full_name: Trik Board
+  socs:
+    - name: nrf52833

@@ -1,0 +1,10 @@
+identifier: trik-board/nrf52833
+name: Peripheral module for a mobile robot
+vendor: trik
+type: mcu
+arch: arm
+ram: 128
+flash: 512
+toolchain:
+  - zephyr
+supported: []

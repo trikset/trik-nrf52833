@@ -1,0 +1,12 @@
+description: TRIK servo port
+compatible: "trik,servo-port"
+include: [base.yaml, trik-port-common.yaml]
+
+properties:
+  in:
+    type: phandle-array
+    specifier-space: gpio
+    required: true
+  pwms:
+    type: phandle-array
+    required: true

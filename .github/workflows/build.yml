@@ -1,0 +1,63 @@
+name: zephyr-build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+ 
+jobs:
+  build:
+    name: Build app and tests
+    strategy:
+      fail-fast: false
+      matrix:
+        build-type: [release, debug]
+    runs-on: ubuntu-latest
+    env:
+      APP_PATH: app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.APP_PATH }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Zephyr project
+        uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          app-path: ${{ env.APP_PATH }}
+          toolchains: arm-zephyr-eabi
+          sdk-version: 0.17.4
+          west-version: 1.4.0
+
+      - name: Build firmware
+        working-directory: ${{ env.APP_PATH }}
+        run: |
+          if [ "${{ matrix.build-type }}" = "debug" ]; then
+            west build --build-dir build -b trik-board/nrf52833 --sysbuild -- \
+              -DEXTRA_CONF_FILE=debug/debug.conf \
+              -DDTC_OVERLAY_FILE=debug/debug.overlay \
+              -DBOARD_ROOT=$(pwd)
+          else
+            west build --build-dir build -b trik-board/nrf52833 --sysbuild -- -DBOARD_ROOT=$(pwd)
+          fi
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zephyr-firmware-${{ matrix.build-type }}
+          path: |
+            build/**.zephyr/*.hex
+            build/**/zephyr/*.bin
+            build/**/zephyr/*.elf

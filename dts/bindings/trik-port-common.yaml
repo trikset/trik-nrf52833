@@ -1,0 +1,7 @@
+properties:
+  port-name:
+    type: string
+    required: true
+  enable:
+    type: phandle-array
+    specifier-space: gpio

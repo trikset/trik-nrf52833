@@ -1,0 +1,13 @@
+description: TRIK encoder port
+compatible: "trik,encoder-port"
+include: [base.yaml, trik-port-common.yaml]
+
+properties:
+  a-gpios:
+    type: phandle-array
+    specifier-space: gpio
+    required: true
+  b-gpios:
+    type: phandle-array
+    specifier-space: gpio
+    required: true

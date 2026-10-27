@@ -1,0 +1,12 @@
+description: TRIK analog port
+compatible: "trik,analog-port"
+include: [base.yaml, trik-port-common.yaml]
+
+properties:
+  io-channels:
+    type: phandle-array
+    required: true
+  out:
+    type: phandle-array
+    specifier-space: gpio
+    required: true

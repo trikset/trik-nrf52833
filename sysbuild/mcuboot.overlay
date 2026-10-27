@@ -1,0 +1,18 @@
+/ {
+	buttons {
+		compatible = "gpio-keys";
+		button3: button_3 {
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	aliases {
+		mcuboot-button0 = &button3;
+	};
+};
+
+&zephyr_udc0 {
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};

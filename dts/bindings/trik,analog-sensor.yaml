@@ -1,0 +1,8 @@
+description: TRIK analog sensor
+compatible: "trik,analog-sensor"
+include: [base.yaml]
+
+properties:
+  port:
+    type: phandle
+    required: true

@@ -1,0 +1,19 @@
+description: USB Raw bulk interface (Custom Vendor Class)
+compatible: "zephyr,usb-raw"
+
+include: [base.yaml]
+
+properties:
+  bulk-in-ep:
+    type: int
+    required: true
+    description: Address of the IN endpoint (e.g., 0x81)
+  bulk-out-ep:
+    type: int
+    required: true
+    description: Address of the OUT endpoint (e.g., 0x01)
+  intr-out-ep:
+    type: int
+    required: false
+    description: Address of the interrupt OUT endpoint for control commands (e.g., 0x03)
+  

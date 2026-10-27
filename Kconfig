@@ -1,0 +1,102 @@
+source "Kconfig.zephyr"
+
+menu "Raw USB Configuration"
+
+config RAW_USB_VID
+    hex "Raw USB Vendor ID"
+    default 0x2FE9
+    help
+      Vendor ID for the raw USB device.
+
+config RAW_USB_PID
+    hex "Raw USB Product ID"
+    default 0x0100
+    help
+      Product ID for the raw USB device.
+
+config RAW_USB_MANUFACTURER
+    string "USB Manufacturer string"
+    default "MyCompany"
+
+config RAW_USB_PRODUCT
+    string "USB Product string"
+    default "Raw_Encoder_Device"
+
+config RAW_USB_VERSION
+    string "Firmware version string"
+    default "1.0.0"
+    help
+      Version string reported over the GET_VERSION vendor control request.
+      Must match the firmware.version marker in the distro repo.
+
+config RAW_USB_SELF_POWERED
+    bool "Set USB Self-Powered attribute"
+    default n
+    help
+      Set to y if the device has an external power source.
+
+config CUSTOM_USBD_MAX_POWER
+    int "Maximum power consumption (mA)"
+    default 100
+    range 0 500
+
+config USBD_RAW_BUF_POOL
+    bool "Use dedicated buffer pool for Raw USB"
+    default y
+
+config USB_PROTO_RX_COUNT
+    int "Number of RX buffers"
+    default 12
+
+config USB_PROTO_RX_MAX_SIZE
+    int "Max payload size"
+    default 256
+
+config RAW_USB_TELEMETRY_ISO
+    bool "Send telemetry over an isochronous IN endpoint"
+    default n
+    help
+      Select the transport used for periodic periphery telemetry.
+
+      When disabled (default), telemetry packets are sent over the shared
+      BULK IN endpoint together with the request/response stream. Delivery
+      timing is then paced by the host and is not guaranteed.
+
+      When enabled, an additional isochronous IN endpoint is added to the
+      vendor interface and telemetry frames are sent once per USB full-speed
+      frame (1 kHz) with hardware-paced cadence. The request/response stream
+      stays on BULK.
+
+      Endpoint address is configurable with RAW_USB_TELEMETRY_ISO_EP. On
+      nRF52 the isochronous IN endpoint is fixed at 0x88.
+
+config RAW_USB_TELEMETRY_ISO_EP
+    hex "Telemetry isochronous IN endpoint address"
+    default 0x88
+
+endmenu
+
+menu "BLE HCI USB Dongle Configuration"
+
+config TRIK_BT_HCI_LOG_LEVEL
+    int "BT HCI class log level (0=OFF..4=DBG)"
+    default 3
+    range 0 4
+
+config TRIK_BT_HCI_TX_STACK_SIZE
+    int "HCI TX thread stack size (bytes)"
+    default 512
+
+config TRIK_BT_HCI_RX_STACK_SIZE
+    int "HCI RX thread stack size (bytes)"
+    default 512
+
+config TRIK_BT_HCI_RX_THREAD_PRIORITY
+    int "HCI RX thread priority (cooperative)"
+    default 8
+
+config TRIK_BT_HCI_TX_THREAD_PRIORITY
+    int "HCI TX thread priority (cooperative)"
+    default 8
+
+endmenu

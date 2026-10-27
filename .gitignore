@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# Build output (Zephyr / sysbuild / west / CMake)
+# ---------------------------------------------------------------------------
+build/
+build-*/
+twister-out*/
+outdir/
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+.ninja_*
+*.log
+
+# Compiled objects / libraries
+*.o
+*.ko
+*.obj
+*.a
+*.la
+*.lo
+*.lib
+*.d
+*.dep
+
+# Linked images and linker output
+*.elf
+*.hex
+*.map
+*.ilk
+*.exp
+
+# Precompiled headers / debug info
+*.gch
+*.pch
+*.su
+*.dwo
+*.idb
+*.pdb
+*.dSYM/
+
+# Shared objects / executables (host tools)
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# ---------------------------------------------------------------------------
+# West workspace
+# ---------------------------------------------------------------------------
+.west/
+west-*/
+
+# ---------------------------------------------------------------------------
+# Host tools (Python)
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# ---------------------------------------------------------------------------
+# Editors / IDE
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------------------------------------------------------------------------
+# OS junk
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db

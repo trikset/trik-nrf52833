@@ -1,0 +1,169 @@
+/dts-v1/;
+
+#include <nordic/nrf52833_qiaa.dtsi>
+#include "trik-board-pinctrl.dtsi"
+#include "trik-board-ports.dtsi"
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/pinctrl/nrf-pinctrl.h>
+
+/ {
+	model = "Peripheral module for a mobile robot";
+	compatible = "trik,trik-board";
+
+	usb_raw_cmd: usb_raw_0 {
+		compatible = "zephyr,usb-raw";
+		status = "okay";
+		bulk-in-ep = <0x81>;
+		bulk-out-ep = <0x01>;
+		intr-out-ep = <0x03>;
+	};
+
+	analog_sensors {
+		analog_a1: analog-sensor-a1 {
+			compatible = "trik,analog-sensor";
+			port = <&port_a1>;
+		};
+
+		analog_a2: analog-sensor-a2 {
+			compatible = "trik,analog-sensor";
+			port = <&port_a2>;
+		};
+
+		analog_a3: analog-sensor-a3 {
+			compatible = "trik,analog-sensor";
+			port = <&port_a3>;
+		};
+
+		analog_a4: analog-sensor-a4 {
+			compatible = "trik,analog-sensor";
+			port = <&port_a4>;
+		};
+
+		analog_a5: analog-sensor-a5 {
+			compatible = "trik,analog-sensor";
+			port = <&port_a5>;
+		};
+
+		analog_a6: analog-sensor-a6 {
+			compatible = "trik,analog-sensor";
+			port = <&port_a6>;
+		};
+	};
+
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,bt-mon-uart = &uart0;
+		zephyr,bt-c2h-uart = &uart0;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,ieee802154 = &ieee802154;
+	};
+};
+
+&flash0 {
+	status = "okay";
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		slot0_partition: partition@10000 {
+			label = "image-0";
+			reg = <0x00010000 0x00070000>;
+		};
+	};
+};
+
+&reg1 {
+	regulator-initial-mode = <NRF5X_REG_MODE_DCDC>;
+};
+
+&adc {
+	zephyr,deferred-init;
+	status = "okay";
+};
+
+&uicr {
+	status = "okay";
+	gpio-as-nreset;
+};
+
+&nfct {
+	status = "disabled";
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&uart0 {
+	compatible = "nordic,nrf-uarte";
+	status = "disabled";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-1 = <&uart0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&i2c1 {
+	compatible = "nordic,nrf-twi";
+	status = "disabled";
+	pinctrl-0 = <&i2c0_default>;
+	pinctrl-1 = <&i2c0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pwm0_default>;
+	pinctrl-1 = <&pwm0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&pwm1 {
+	status = "okay";
+	pinctrl-0 = <&pwm1_default>;
+	pinctrl-1 = <&pwm1_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&pwm2 {
+	status = "okay";
+	pinctrl-0 = <&pwm2_default>;
+	pinctrl-1 = <&pwm2_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&pwm3 {
+	status = "okay";
+	pinctrl-0 = <&pwm3_default>;
+	pinctrl-1 = <&pwm3_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&ieee802154 {
+	status = "okay";
+};
+
+zephyr_udc0: &usbd {
+	compatible = "nordic,nrf-usbd";
+	status = "okay";
+};
+
+&spi0 {
+	status = "disabled";
+	pinctrl-0 = <&spi0_default>;
+	pinctrl-1 = <&spi0_sleep>;
+	pinctrl-names = "default", "sleep";
+	cs-gpios = <&gpio0 9 0>;
+};

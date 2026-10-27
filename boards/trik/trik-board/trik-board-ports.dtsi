@@ -1,0 +1,142 @@
+/ {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port_e1: port@0 {
+			compatible = "trik,encoder-port";
+			reg = <0>;
+			port-name = "E1";
+
+			a-gpios = <&gpio0 7 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			b-gpios = <&gpio1 9 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+		};
+
+		port_e2: port@1 {
+			compatible = "trik,encoder-port";
+			reg = <1>;
+			port-name = "E2";
+
+			a-gpios = <&gpio1 7 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			b-gpios = <&gpio1 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+		};
+
+		port_e3: port@2 {
+			compatible = "trik,encoder-port";
+			reg = <2>;
+			port-name = "E3";
+
+			a-gpios = <&gpio0 12 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			b-gpios = <&gpio0 11 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+		};
+
+		port_e4: port@3 {
+			compatible = "trik,encoder-port";
+			reg = <3>;
+			port-name = "E4";
+
+			a-gpios = <&gpio1 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			b-gpios = <&gpio1 2 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+		};
+
+		port_a1: port@4 {
+			compatible = "trik,analog-port";
+			reg = <4>;
+			port-name = "A1";
+
+			enable = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+			io-channels = <&adc 3>; /* P0.05 */
+			out = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+		};
+
+		port_a2: port@5 {
+			compatible = "trik,analog-port";
+			reg = <5>;
+			port-name = "A2";
+
+			enable = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+			io-channels = <&adc 2>; /* P0.04 */
+			out = <&gpio0 26 GPIO_ACTIVE_HIGH>;
+		};
+
+		port_a3: port@6 {
+			compatible = "trik,analog-port";
+			reg = <6>;
+			port-name = "A3";
+
+			enable = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+			io-channels = <&adc 6>; /* P0.30 */
+			out = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+		};
+
+		port_a4: port@7 {
+			compatible = "trik,analog-port";
+			reg = <7>;
+			port-name = "A4";
+
+			enable = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+			io-channels = <&adc 7>; /* P0.31 */
+			out = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		};
+
+		port_a5: port@8 {
+			compatible = "trik,analog-port";
+			reg = <8>;
+			port-name = "A5";
+
+			enable = <&gpio0 23 GPIO_ACTIVE_HIGH>;
+			io-channels = <&adc 4>; /* P0.28 */
+			out = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+		};
+
+		port_a6: port@9 {
+			compatible = "trik,analog-port";
+			reg = <9>;
+			port-name = "A6";
+
+			enable = <&gpio0 25 GPIO_ACTIVE_HIGH>;
+			io-channels = <&adc 5>; /* P0.29 */
+			out = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		};
+
+		port_a7: port@a {
+			compatible = "trik,servo-port";
+			reg = <0xa>;
+			port-name = "A7";
+
+			enable = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+			in = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+			pwms = <&pwm0 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+		};
+
+		port_a8: port@b {
+			compatible = "trik,servo-port";
+			reg = <0xb>;
+			port-name = "A8";
+
+			enable = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+			in = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+			pwms = <&pwm1 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+		};
+
+		port_a9: port@c {
+			compatible = "trik,servo-port";
+			reg = <0xc>;
+			port-name = "A9";
+
+			enable = <&gpio0 19 GPIO_ACTIVE_HIGH>;
+			in = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+			pwms = <&pwm2 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+		};
+
+		port_a10: port@d {
+			compatible = "trik,servo-port";
+			reg = <0xd>;
+			port-name = "A10";
+
+			enable = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+			in = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+			pwms = <&pwm3 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+		};
+	};
+};

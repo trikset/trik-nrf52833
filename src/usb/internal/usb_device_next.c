@@ -19,10 +19,11 @@
 #include <zephyr/usb/usb_ch9.h>
 #include "usb_device_api.h"
 #include "protocol_schema.h"
+#include "periphery_addresses.h"
+#include "telemetry.h"
 
 LOG_MODULE_REGISTER(usb_module, LOG_LEVEL_INF);
 
-extern struct net_buf *take_periphery_snapshot(uint64_t *in_ts_us);
 extern int telemetry_control(struct request_ctx *ctx, uint32_t period_us, uint8_t enable);
 
 #define DT_DRV_COMPAT           zephyr_usb_raw
@@ -172,14 +173,13 @@ static struct net_buf *get_udc_buf(struct usbd_class_data *const c_data, k_timeo
 	return buf;
 }
 
-/* Enqueue a prepared payload buffer onto the raw IN endpoint.
+/* Enqueue a prepared UDC buffer onto the raw IN endpoint.
  *
  * Returns 0 on success (the UDC driver now owns `udc_buf` until the transfer
  * completes) or a negative errno otherwise. On failure the caller must unref
  * `udc_buf` and release the corresponding TX slot itself.
  */
-static int usb_raw_tx_enqueue(struct usbd_class_data *const c_data, struct net_buf *const raw_buf,
-			      struct net_buf *const udc_buf)
+static int usb_raw_ep_enqueue(struct usbd_class_data *const c_data, struct net_buf *const udc_buf)
 {
 	const struct device *dev = usbd_class_get_private(c_data);
 	struct usb_raw_data *usb_data = dev->data;
@@ -201,14 +201,47 @@ static int usb_raw_tx_enqueue(struct usbd_class_data *const c_data, struct net_b
 		return -EPERM;
 	}
 
-	net_buf_add_mem(udc_buf, raw_buf->data, raw_buf->len);
-
 	ret = usbd_ep_enqueue(c_data, udc_buf);
 	if (ret) {
 		LOG_ERR("Failed to usbd_ep_enqueue: %d", ret);
 	}
 
 	return ret;
+}
+
+static int usb_raw_tx_enqueue(struct usbd_class_data *const c_data, struct net_buf *const raw_buf,
+			      struct net_buf *const udc_buf)
+{
+	net_buf_add_mem(udc_buf, raw_buf->data, raw_buf->len);
+	return usb_raw_ep_enqueue(c_data, udc_buf);
+}
+
+/* Serialize a raw telemetry sample directly into the UDC buffer, without an
+ * intermediate protocol buffer or memcpy. */
+static void telemetry_fill_packet(struct net_buf *const udc_buf,
+				  const struct telemetry_snapshot *const snap)
+{
+	const uint16_t payload_len = 1 + sizeof(uint64_t) + PORT_COUNT * sizeof(int32_t);
+	const uint64_t ts_us = k_ticks_to_us_near64(snap->ts_ticks);
+	uint8_t *p;
+
+	p = net_buf_add(udc_buf, HEADER_SIZE);
+	p[0] = PERIPHERY;
+	p[1] = 0;
+	p[2] = 0;
+	p[3] = 0;
+	sys_put_le16(payload_len, &p[4]);
+
+	p = net_buf_add(udc_buf, payload_len);
+	p[0] = TYPE_CONTROL;
+	p++;
+	sys_put_le64(ts_us, p);
+	p += sizeof(ts_us);
+
+	for (int i = 0; i < PORT_COUNT; i++) {
+		sys_put_le32((uint32_t)snap->values[i], p);
+		p += sizeof(int32_t);
+	}
 }
 
 /// Most incoming USB (Host->device) requests are currently control requests related to the
@@ -438,7 +471,14 @@ static int usbd_raw_ctd(struct usbd_class_data *const c_data,
 		}
 		uint32_t period_us = sys_get_le32(buf->data);
 		uint8_t enable = buf->data[4];
-		return telemetry_control(usb_data->ctx, period_us, enable);
+		int err = telemetry_control(usb_data->ctx, period_us, enable);
+
+		if (err) {
+			LOG_ERR("telemetry_control failed: req=0x%02x period_us=%u enable=%u err=%d",
+				setup->bRequest, period_us, enable, err);
+		}
+
+		return err;
 	}
 
 	int err = perform_cmd_request(usb_data->ctx, buf);
@@ -527,15 +567,16 @@ static void usb_raw_tx_thread(void *p1, void *p2, void *p3)
 
 			k_sem_take(&data->telemetry_tick, K_NO_WAIT);
 
-			buf = take_periphery_snapshot(NULL);
-			if (buf) {
+			struct telemetry_snapshot snapshot;
+
+			if (take_periphery_snapshot(&snapshot)) {
+				telemetry_fill_packet(udc_buf, &snapshot);
 				((struct usb_raw_buf_info *)udc_get_buf_info(udc_buf))->pkg_type =
 					PACKAGE_TYPE_TELEMETRY;
-				if (usb_raw_tx_enqueue(c_data, buf, udc_buf)) {
+				if (usb_raw_ep_enqueue(c_data, udc_buf)) {
 					k_sem_give(&data->telemetry_slot);
 					net_buf_unref(udc_buf);
 				}
-				net_buf_unref(buf);
 			} else {
 				k_sem_give(&data->telemetry_slot);
 				net_buf_unref(udc_buf);
@@ -590,11 +631,11 @@ static void usb_raw_tx_thread(void *p1, void *p2, void *p3)
 /// from the USB frames themselves: the next frame is armed right after the
 /// previous one completes, so at most one transfer is ever in flight.
 ///
-/// Buffer ownership: the snapshot (`buf`, protocol RX pool) is copied into a
-/// UDC endpoint buffer (`udc_buf`) by usb_raw_tx_enqueue() and unref'd here
-/// right after the copy; `udc_buf` is owned by the controller once enqueued
-/// and is freed by the request callback together with the slot release.
-/// On any failure this thread returns the slot and frees what it still owns.
+/// Buffer ownership: the raw sample is serialized directly into the UDC
+/// endpoint buffer (`udc_buf`); `udc_buf` is owned by the controller once
+/// enqueued and is freed by the request callback together with the slot
+/// release. On any failure this thread returns the slot and frees what it
+/// still owns.
 ///
 /// BULK and ISO telemetry are mutually exclusive compile-time options: the
 /// thread, its stack and the SYS_INIT hook are only allocated when
@@ -607,16 +648,14 @@ static void usb_raw_iso_telemetry_thread(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 
-	struct net_buf *buf;
 	struct net_buf *udc_buf;
-	uint64_t ts = 0;
+	struct telemetry_snapshot snapshot;
 
 	while (1) {
 		k_sem_take(&data->telemetry_tick, K_FOREVER);
 		k_sem_take(&data->telemetry_iso_slot, K_FOREVER);
 
-		buf = take_periphery_snapshot(&ts);
-		if (buf == NULL) {
+		if (!take_periphery_snapshot(&snapshot)) {
 			k_sem_give(&data->telemetry_iso_slot);
 			continue;
 		}
@@ -624,17 +663,16 @@ static void usb_raw_iso_telemetry_thread(void *p1, void *p2, void *p3)
 		udc_buf = usb_raw_buf_alloc(c_data, CONFIG_RAW_USB_TELEMETRY_ISO_EP, K_NO_WAIT);
 		if (udc_buf == NULL) {
 			k_sem_give(&data->telemetry_iso_slot);
-			net_buf_unref(buf);
 			continue;
 		}
 
+		telemetry_fill_packet(udc_buf, &snapshot);
 		((struct usb_raw_buf_info *)udc_get_buf_info(udc_buf))->pkg_type =
 			PACKAGE_TYPE_TELEMETRY;
-		if (usb_raw_tx_enqueue(c_data, buf, udc_buf)) {
+		if (usb_raw_ep_enqueue(c_data, udc_buf)) {
 			k_sem_give(&data->telemetry_iso_slot);
 			net_buf_unref(udc_buf);
 		}
-		net_buf_unref(buf);
 	}
 }
 #endif /* CONFIG_RAW_USB_TELEMETRY_ISO */

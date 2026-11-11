@@ -14,6 +14,7 @@
 
 #include "periphery_addresses.h"
 #include "port_table.h"
+#include "telemetry.h"
 #include "analog_sensor.h"
 #include "encoder.h"
 #include "saadc.h"
@@ -57,78 +58,40 @@ static nrfx_timer_t telemetry_timer =
 	NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(TELEMETRY_TIMER_INST_IDX));
 
 /*
- * Latest produced telemetry snapshot, waiting to be picked up by the USB TX
+ * Latest produced telemetry sample, waiting to be picked up by the USB TX
  * thread. Only one slot is kept (latest-wins): if the transport is busy, old
- * frames are dropped instead of queueing up.
+ * samples are dropped instead of queueing up.
  *
- * The snapshot itself is built in interrupt context, so the port value loop is
- * wrapped in irq_lock() to make it consistent with the SAADC ISR (which copies
- * the analog sample buffer) regardless of the relative IRQ priorities.
+ * The port value loop is wrapped in irq_lock() to make it consistent with the
+ * SAADC ISR (which copies the analog sample buffer).  No packet buffer is
+ * allocated or built here: serialization is done by the transport thread.
  */
-static struct net_buf *pending_telemetry;
-static uint64_t pending_ts_us;
-
-static int build_telemetry_packet(struct net_buf **out, uint64_t *ts_out)
-{
-	int err;
-	uint8_t buf[1 + 8 + PORT_COUNT * 4];
-	uint8_t *p = buf;
-	uint64_t ts_us;
-	unsigned int key;
-
-	*p++ = TYPE_CONTROL;
-
-	key = irq_lock();
-	ts_us = k_ticks_to_us_near64(k_uptime_ticks());
-	memcpy(p, &ts_us, sizeof(ts_us));
-	p += sizeof(ts_us);
-
-	for (int i = 0; i < PORT_COUNT; i++) {
-		int32_t v = port_table[i].get_value();
-		memcpy(p, &v, sizeof(v));
-		p += sizeof(v);
-	}
-	irq_unlock(key);
-
-	struct comm_header hdr = {0};
-	hdr.type = PERIPHERY;
-
-	err = create_packet(&hdr, buf, p - buf, out);
-	if (err) {
-		LOG_ERR("Failed to create packet %d", err);
-		return err;
-	}
-
-	*ts_out = ts_us;
-	return 0;
-}
+static struct telemetry_snapshot pending_snapshot;
+static bool snapshot_ready;
 
 /*
- * Periodic entry point: builds the freshest snapshot and publishes it into the
- * latest-wins slot. Transport-agnostic - it is driven by the TIMER2 ISR for
- * both the BULK and the ISO path; the transport only decides when to consume
- * the published packet. Context: interrupt (TIMER2), hence ISR-safe only.
+ * Periodic entry point: samples the ports at the exact timer instant and
+ * publishes the raw values into the latest-wins slot. Transport-agnostic - it
+ * is driven by the TIMER2 ISR for both the BULK and the ISO path; the
+ * transport thread later serializes the snapshot into a USB packet.
+ * Context: interrupt (TIMER2), hence ISR-safe only.
  */
 static void telemetry_produce(void)
 {
-	struct net_buf *packet;
-	uint64_t ts_us;
 	unsigned int key;
 
 	if (!atomic_get(&control_enabled) || global_ctx == NULL) {
 		return;
 	}
 
-	if (build_telemetry_packet(&packet, &ts_us) != 0 || packet == NULL) {
-		return;
+	key = irq_lock();
+	pending_snapshot.ts_ticks = k_uptime_ticks();
+
+	for (int i = 0; i < PORT_COUNT; i++) {
+		pending_snapshot.values[i] = port_table[i].get_value();
 	}
 
-	key = irq_lock();
-	if (pending_telemetry != NULL) {
-		net_buf_unref(pending_telemetry);
-	}
-	pending_telemetry = packet;
-	pending_ts_us = ts_us;
+	snapshot_ready = true;
 	irq_unlock(key);
 
 	k_sem_give(global_ctx->telemetry_tick);
@@ -174,11 +137,7 @@ static void telemetry_timer_stop(void)
 	atomic_set(&control_enabled, 0);
 
 	key = irq_lock();
-	if (pending_telemetry != NULL) {
-		net_buf_unref(pending_telemetry);
-		pending_telemetry = NULL;
-	}
-	pending_ts_us = 0;
+	snapshot_ready = false;
 	irq_unlock(key);
 }
 
@@ -201,23 +160,20 @@ static int telemetry_timer_setup(void)
 	return 0;
 }
 
-/* Pop the latest produced snapshot. Returns NULL if nothing is pending. */
-struct net_buf *take_periphery_snapshot(uint64_t *in_ts_us)
+bool take_periphery_snapshot(struct telemetry_snapshot *out)
 {
-	struct net_buf *packet;
-	uint64_t ts_us;
 	unsigned int key;
+	bool ready;
 
 	key = irq_lock();
-	packet = pending_telemetry;
-	ts_us = pending_ts_us;
-	pending_telemetry = NULL;
+	ready = snapshot_ready;
+	if (ready) {
+		*out = pending_snapshot;
+		snapshot_ready = false;
+	}
 	irq_unlock(key);
 
-	if (in_ts_us != NULL) {
-		*in_ts_us = ts_us;
-	}
-	return packet;
+	return ready;
 }
 
 int init_periphery(void)

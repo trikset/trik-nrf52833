@@ -122,7 +122,6 @@ static int telemetry_timer_start(uint32_t period_us)
 	nrfx_timer_disable(&telemetry_timer);
 	nrfx_timer_clear(&telemetry_timer);
 	ticks = nrfx_timer_us_to_ticks(&telemetry_timer, period_us);
-	LOG_INF("telemetry timer set: period=%u us, ticks=%u", period_us, ticks);
 	nrfx_timer_extended_compare(&telemetry_timer, NRF_TIMER_CC_CHANNEL0, ticks,
 				    NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
 	control_period_us = period_us;
@@ -213,8 +212,6 @@ int init_periphery(void)
 int telemetry_control(struct request_ctx *ctx, uint32_t period_us, uint8_t enable)
 {
 	global_ctx = ctx;
-
-	LOG_INF("telemetry control: enable=%u, period=%u us", enable, period_us);
 
 	if (enable) {
 		if (atomic_get(&control_enabled)) {
